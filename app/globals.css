@@ -335,3 +335,51 @@ header {
 ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
 
 @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* LOGO ENHANCED */
+.logo-mark-new {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, #63b3ed, #4299e1);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px; font-weight: 700; color: #080c14;
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  box-shadow: 0 0 16px rgba(99,179,237,0.5);
+  transition: all 0.2s;
+}
+.logo:hover .logo-mark-new { box-shadow: 0 0 28px rgba(99,179,237,0.9); transform: scale(1.08) rotate(10deg); }
+.logo-text-new { display: flex; flex-direction: column; line-height: 1; }
+.logo-text-new .main { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.03em; }
+.logo-text-new .main span { color: #63b3ed; text-shadow: 0 0 20px rgba(99,179,237,0.5); }
+.logo-text-new .sub { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #4d6380; letter-spacing: 0.15em; text-transform: uppercase; margin-top: 1px; }
+
+/* MOBILE BOTTOM NAV */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(8,12,20,0.97);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  z-index: 600;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.mobile-nav-inner { display: flex; height: 60px; }
+.mobile-nav-btn {
+  flex: 1; background: none; border: none;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  cursor: pointer; transition: all 0.15s; color: #4d6380; padding: 8px 0;
+}
+.mobile-nav-btn.active { color: #63b3ed; background: rgba(99,179,237,0.05); }
+.mobile-nav-icon { font-size: 20px; line-height: 1; }
+.mobile-nav-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.04em; }
+
+@media (max-width: 960px) {
+  .layout, .qa-layout { grid-template-columns: 1fr; padding: 12px 14px 80px; }
+  .bookmarks-layout { padding: 12px 14px 80px; }
+  .sidebar, .qa-sidebar { display: none; }
+  .header-nav { display: none; }
+  .bm-count-badge { display: none; }
+  .ticker-wrap { padding: 7px 14px; }
+  .mobile-nav { display: block; }
+}

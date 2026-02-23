@@ -448,9 +448,12 @@ export default function Home() {
       {/* HEADER */}
       <header>
         <div className="header-inner">
-          <div className="logo" onClick={() => setPage('feed')}>
-            <div className="logo-mark">C</div>
-            <div className="logo-text">Code<span>Wire</span></div>
+          <div className="logo" onClick={() => { setPage('feed'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+            <div className="logo-mark-new">⚡</div>
+            <div className="logo-text-new">
+              <span className="main">Code<span>Wire</span></span>
+              <span className="sub">Tech · AI · Engineers</span>
+            </div>
           </div>
           <nav className="header-nav">
             <button className={`nav-btn ${page === 'feed' ? 'active' : ''}`} onClick={() => setPage('feed')}>FEED</button>
@@ -761,6 +764,24 @@ export default function Home() {
               })}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* MOBILE BOTTOM NAV */}
+      <div className="mobile-nav">
+        <div className="mobile-nav-inner">
+          <button className={`mobile-nav-btn ${page === 'feed' ? 'active' : ''}`} onClick={() => { setPage('feed'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+            <span className="mobile-nav-icon">📰</span>
+            <span className="mobile-nav-label">FEED</span>
+          </button>
+          <button className={`mobile-nav-btn ${page === 'qa' ? 'active' : ''}`} onClick={() => setPage('qa')}>
+            <span className="mobile-nav-icon">💬</span>
+            <span className="mobile-nav-label">Q&A</span>
+          </button>
+          <button className={`mobile-nav-btn ${page === 'bookmarks' ? 'active' : ''}`} onClick={() => setPage('bookmarks')}>
+            <span className="mobile-nav-icon">☆</span>
+            <span className="mobile-nav-label">SAVED</span>
+          </button>
         </div>
       </div>
     </>
