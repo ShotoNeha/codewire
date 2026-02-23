@@ -184,28 +184,34 @@ export default function Home() {
 
   // ── Fetchers ───────────────────────────────────────────
   const fetchHN = async (): Promise<Article[]> => {
-    const res = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json')
-    const ids: number[] = await res.json()
-    const results = await Promise.allSettled(
-      ids.slice(0, 30).map((id) =>
-        fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then((r) => r.json())
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+    try {
+      const res = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json', { signal: controller.signal })
+      const ids: number[] = await res.json()
+      const results = await Promise.allSettled(
+        ids.slice(0, 15).map((id) =>
+          fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { signal: controller.signal }).then((r) => r.json())
+        )
       )
-    )
-    return results
-      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value?.title)
-      .map((r) => r.value)
-      .map((item) => ({
-        id: 'hn_' + item.id,
-        source: 'hn' as const,
-        title: item.title,
-        url: item.url || `https://news.ycombinator.com/item?id=${item.id}`,
-        hnUrl: `https://news.ycombinator.com/item?id=${item.id}`,
-        score: item.score || 0,
-        comments: item.descendants || 0,
-        time: item.time,
-        by: item.by,
-        tags: extractTags(item.title),
-      }))
+      return results
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value?.title)
+        .map((r) => r.value)
+        .map((item) => ({
+          id: 'hn_' + item.id,
+          source: 'hn' as const,
+          title: item.title,
+          url: item.url || `https://news.ycombinator.com/item?id=${item.id}`,
+          hnUrl: `https://news.ycombinator.com/item?id=${item.id}`,
+          score: item.score || 0,
+          comments: item.descendants || 0,
+          time: item.time,
+          by: item.by,
+          tags: extractTags(item.title),
+        }))
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   const fetchDevTo = async (): Promise<Article[]> => {
@@ -232,42 +238,64 @@ export default function Home() {
   ]
 
   const fetchRSS = async (src: typeof RSS_SOURCES[0]): Promise<Article[]> => {
-    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`
-    const res = await fetch(proxy)
-    const data = await res.json()
-    const doc = new DOMParser().parseFromString(data.contents, 'text/xml')
-    return Array.from(doc.querySelectorAll('item, entry'))
-      .slice(0, 8)
-      .map((item, i) => {
-        const title = item.querySelector('title')?.textContent?.replace(/<[^>]*>/g, '').trim() || ''
-        const link = (
-          item.querySelector('link')?.textContent ||
-          item.querySelector('link')?.getAttribute('href') ||
-          '#'
-        ).trim()
-        const date = item.querySelector('pubDate, published, updated')?.textContent || ''
-        const desc = (item.querySelector('description, summary')?.textContent || '')
-          .replace(/<[^>]*>/g, '').trim().slice(0, 140)
-        return {
-          id: `rss_${src.badge}_${i}_${Date.now()}`,
-          source: 'rss' as const,
-          sourceName: src.name,
-          sourceBadge: src.badge,
-          title, url: link, time: date,
-          tags: extractTags(title),
-          description: desc,
-          score: 0, comments: 0, by: src.name,
-        }
-      })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 6000)
+    try {
+      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`
+      const res = await fetch(proxy, { signal: controller.signal })
+      const data = await res.json()
+      const doc = new DOMParser().parseFromString(data.contents, 'text/xml')
+      return Array.from(doc.querySelectorAll('item, entry'))
+        .slice(0, 6)
+        .map((item, i) => {
+          const title = item.querySelector('title')?.textContent?.replace(/<[^>]*>/g, '').trim() || ''
+          const link = (
+            item.querySelector('link')?.textContent ||
+            item.querySelector('link')?.getAttribute('href') ||
+            '#'
+          ).trim()
+          const date = item.querySelector('pubDate, published, updated')?.textContent || ''
+          const desc = (item.querySelector('description, summary')?.textContent || '')
+            .replace(/<[^>]*>/g, '').trim().slice(0, 140)
+          return {
+            id: `rss_${src.badge}_${i}_${Date.now()}`,
+            source: 'rss' as const,
+            sourceName: src.name,
+            sourceBadge: src.badge,
+            title, url: link, time: date,
+            tags: extractTags(title),
+            description: desc,
+            score: 0, comments: 0, by: src.name,
+          }
+        })
+    } catch {
+      return []
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   const loadAll = useCallback(async () => {
     setLoading(true)
-    setProgress(5)
+    setProgress(10)
 
-    const [hnR, dtR, rssR, ghR] = await Promise.allSettled([
-      fetchHN(),
-      fetchDevTo(),
+    // HNとDev.toを先に取得・即表示
+    const [hnR, dtR] = await Promise.allSettled([fetchHN(), fetchDevTo()])
+    const hn = hnR.status === 'fulfilled' ? hnR.value : []
+    const dt = dtR.status === 'fulfilled' ? dtR.value : []
+
+    const initial = [
+      ...hn.sort((a, b) => b.score - a.score),
+      ...dt.sort((a, b) => b.score - a.score),
+    ]
+    setArticles(initial)
+    setTicker(hn.slice(0, 20))
+    setDisplayCount(PAGE_SIZE)
+    setLoading(false)
+    setProgress(60)
+
+    // RSSとGitHubは後から追加
+    const [rssR, ghR] = await Promise.allSettled([
       Promise.allSettled(RSS_SOURCES.map(fetchRSS)),
       fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://github.com/trending')}`)
         .then((r) => r.json())
@@ -285,28 +313,15 @@ export default function Home() {
         }),
     ])
 
-    setProgress(75)
-
-    const hn = hnR.status === 'fulfilled' ? hnR.value : []
-    const dt = dtR.status === 'fulfilled' ? dtR.value : []
     const rss = rssR.status === 'fulfilled'
       ? rssR.value.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
       : []
 
-    const merged = [
-      ...hn.sort((a, b) => b.score - a.score),
-      ...dt.sort((a, b) => b.score - a.score),
-      ...rss,
-    ]
-
-    setArticles(merged)
-    setTicker(hn.slice(0, 20))
-    setDisplayCount(PAGE_SIZE)
+    setArticles([...initial, ...rss])
     if (ghR.status === 'fulfilled') setRepos(ghR.value as typeof FALLBACK_REPOS)
 
     setProgress(100)
     setTimeout(() => setProgress(0), 600)
-    setLoading(false)
   }, [])
 
   useEffect(() => { loadAll() }, [loadAll])
@@ -524,7 +539,7 @@ export default function Home() {
                             className={`btn-translate ${tr ? 'done' : ''}`}
                             onClick={() => translate(a)}
                           >
-                            {tr ? (tr.visible ? '✓ 非表示' : '✓ 表示') : '🌐 日本語'}
+                            {tr ? (tr.visible ? '✓ 非表示' : '✓ 再表示') : '日本語要約'}
                           </button>
                           <button className={`btn-bookmark ${isSaved ? 'saved' : ''}`} onClick={() => toggleBookmark(a)}>☆</button>
                           <a className="btn-open" href={a.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>OPEN ↗</a>
@@ -735,7 +750,7 @@ export default function Home() {
                     <div className="card-bottom">
                       <div className="card-actions">
                         <button className={`btn-translate ${tr ? 'done' : ''}`} onClick={() => translate(a)}>
-                          {tr ? (tr.visible ? '✓ 非表示' : '✓ 表示') : '🌐 日本語'}
+                          {tr ? (tr.visible ? '✓ 非表示' : '✓ 再表示') : '日本語要約'}
                         </button>
                         <button className="btn-bookmark saved" onClick={() => toggleBookmark(a)}>☆</button>
                         <a className="btn-open" href={a.url} target="_blank" rel="noreferrer">OPEN ↗</a>
